@@ -1,52 +1,40 @@
 package lockfree.vehicle;
 
-import lockfree.Driver;
-import lockfree.GPS;
-import lockfree.MeasurableAction;
-
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 public class ThreadsRunner {
     private Logger logger = Logger.getLogger(getClass().getName());
-    private final ThreadLocal<MeasurableAction> readAction = new ThreadLocal<MeasurableAction>();
-    private final ThreadLocal<MeasurableAction> writeAction = new ThreadLocal<MeasurableAction>();
-    private final double percentOfReadRequests;
+    private final long warmupTimeInMillis;
     private final long executionTimeInMillis;
-    private final int numberOfThreads;
+    private final int numOfThreads;
     private final List<Thread> runningThreads;
-    private final Vehicle vehicle;
+    private final Runnable task;
 
-    private long warmupTime = 1000000;
-
-    public ThreadsRunner(Vehicle implementation, double percentOfReadRequests, long executionTimeInSeconds, int numberOfThreads) {
-        this.percentOfReadRequests = percentOfReadRequests;
+    public ThreadsRunner(Runnable task, int numOfThreads, long executionTimeInSeconds, long warmupTimeInMillis) {
         this.executionTimeInMillis = executionTimeInSeconds * 1000;
-        this.numberOfThreads = numberOfThreads;
-        runningThreads = new ArrayList<Thread>(numberOfThreads);
-        vehicle = implementation;
+        this.numOfThreads = numOfThreads;
+        this.warmupTimeInMillis = warmupTimeInMillis;
+        runningThreads = new ArrayList<Thread>(numOfThreads);
+        this.task = task;
     }
 
-    public double[] run() throws InterruptedException {
-        final long startTime = System.nanoTime();
-        final List<int[]> totalSteps = new ArrayList<int[]>();
-        for (int i = 0; i < numberOfThreads; i++) {
+    public double run() throws InterruptedException {
+        final long startTimeInMillis = System.nanoTime() / 1000000;
+        final AtomicLong requests = new AtomicLong(0l);
+        for (int i = 0; i < numOfThreads; i++) {
             final Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    readAction.set(new GPS(vehicle));
-                    EndlessStepsIterator steps = new EndlessStepsIterator();
-                    writeAction.set(new Driver(vehicle, steps));
-                    while (!warmupExpired(startTime)) {
-                        makeStep();
+                    while (!timeExpired(startTimeInMillis, executionTimeInMillis)) {
+                        task.run();
+                        if (timeExpired(startTimeInMillis, warmupTimeInMillis)) {
+                            requests.incrementAndGet();
+                        }
                     }
-
-                    resetCounters();
-                    while (!timeExpired(startTime)) {
-                        makeStep();
-                    }
-                    totalSteps.addAll(steps.getStepsMade());
                 }
             });
             runningThreads.add(t);
@@ -56,32 +44,16 @@ public class ThreadsRunner {
         for (Thread t : runningThreads) {
             t.join();
         }
-        return new double[]{readAction.get().getRequestsPerSecond(), writeAction.get().getRequestsPerSecond()};
+        long testTime = (executionTimeInMillis - warmupTimeInMillis) * 1000;
+        return requests.get() / testTime;
     }
 
-    private void resetCounters() {
-        readAction.get().reset();
-        writeAction.get().reset();
+    private long timePassedInMillis(long startTimeInMillis) {
+        return (System.nanoTime() / 1000000) - startTimeInMillis;
     }
 
-    private void makeStep() {
-        if (isReadOperation()) {
-            readAction.get().doAction();
-        } else {
-            writeAction.get().doAction();
-        }
+    private boolean timeExpired(long startTimeInMillis, long durationInMillis) {
+        return timePassedInMillis(startTimeInMillis) - durationInMillis > 0;
     }
 
-    private boolean warmupExpired(long startTime) {
-        return ((System.nanoTime() - startTime) / 1000000) > warmupTime;
-    }
-
-    private boolean timeExpired(long startTime) {
-        return ((System.nanoTime() - startTime) / 1000000) > executionTimeInMillis;
-    }
-
-
-    private boolean isReadOperation() {
-        return Math.random() <= percentOfReadRequests;
-    }
 }
