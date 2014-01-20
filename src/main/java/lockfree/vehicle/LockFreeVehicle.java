@@ -20,10 +20,10 @@ public class LockFreeVehicle implements Vehicle {
     }
 
     @Override
-    public int[] getPosition() {
+    public void getPosition(int[] coords) {
         try {
             SpinLock.acquire();
-            return vehicle.getPosition();
+            vehicle.getPosition(coords);
         } finally {
             SpinLock.release();
         }

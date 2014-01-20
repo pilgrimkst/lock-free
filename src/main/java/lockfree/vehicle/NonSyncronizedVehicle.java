@@ -1,17 +1,19 @@
 package lockfree.vehicle;
 
 public class NonSyncronizedVehicle implements Vehicle {
-    private int[] position = {0, 0};
+    private final int[] x = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    private final int[] y = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
     @Override
     public void move(int xDelta, int yDelta) {
-        position[0] += xDelta;
-        position[1] += yDelta;
+        x[0] += xDelta;
+        y[1] += yDelta;
     }
 
     @Override
-    public int[] getPosition() {
-        return position;
+    public void getPosition(int[] coords) {
+        coords[0] = x[0];
+        coords[1] = y[1];
     }
 
 }

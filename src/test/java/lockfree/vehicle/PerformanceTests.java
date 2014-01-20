@@ -2,10 +2,7 @@ package lockfree.vehicle;
 
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Logger;
 
 public class PerformanceTests {
@@ -17,12 +14,12 @@ public class PerformanceTests {
     @Test
     public void compareVehicleImplementations() throws InterruptedException {
         List<Vehicle> implementations = getVehicles();
-        List<double[]> results = testImplementations(implementations, numberOfThreads, executionTimeInSeconds, warmupTimeInSeconds);
+        testImplementations(implementations, numberOfThreads, executionTimeInSeconds, warmupTimeInSeconds);
     }
 
     private List<Vehicle> getVehicles() {
         Vehicle nonSync = new NonSyncronizedVehicle();
-        return Arrays.asList(new LockFreeVehicle(nonSync), new ReadWriteLockVehicle(nonSync), new SyncronizedVehicle(nonSync));
+        return Arrays.asList(nonSync, new ReadWriteLockVehicle(nonSync),new LockFreeVehicle(nonSync), new SyncronizedVehicle(nonSync));
     }
 
     @Test
@@ -30,47 +27,44 @@ public class PerformanceTests {
 
     }
 
-    private List<double[]> testImplementations(List<Vehicle> implementations, int numberOfThreads, long executionTimeInSeconds, long warmupTimeInSeconds) throws InterruptedException {
+    private void testImplementations(List<Vehicle> implementations, int numberOfThreads, long executionTimeInSeconds, long warmupTimeInSeconds) throws InterruptedException {
         StringBuilder sb = new StringBuilder("Implementation;1 read;;2 read;;3 read;\n");
-
-        List<double[]> results = new ArrayList<double[]>(implementations.size());
         for (final Vehicle implementation : implementations) {
             sb.append(implementation.getClass().getCanonicalName()).append(";");
             for (int readThreads = 1; readThreads < numberOfThreads; readThreads++) {
-                int writeThreads = numberOfThreads - readThreads;
+//            int readThreads = 2;
+            int writeThreads = numberOfThreads - readThreads;
+            ThreadsRunner tr = new ThreadsRunner(getWriterRunnable(implementation), getReaderRunnable(implementation), writeThreads, readThreads, executionTimeInSeconds, warmupTimeInSeconds);
+            long[] results = tr.run();
 
-                double readersResult = executeReadersTest(executionTimeInSeconds, warmupTimeInSeconds, implementation, readThreads);
-                double writersResult = executeWritersTest(executionTimeInSeconds, warmupTimeInSeconds, implementation, writeThreads);
-
-                sb.append(String.format("%f;%f;", readersResult, writersResult));
+            sb.append(String.format("%d;%d;", results[0], results[1]));
             }
             sb.append("\n");
         }
         logger.info(sb.toString());
-        return results;
     }
 
-    private double executeWritersTest(long executionTimeInSeconds, long warmupTimeInSeconds, final Vehicle implementation, int writeThreads) throws InterruptedException {
-        final Iterator<int[]> steps = new EndlessStepsIterator().iterator();
-        ThreadsRunner writeRunner = new ThreadsRunner(new Runnable() {
-            @Override
-            public void run() {
-                int[] step = steps.next();
-                implementation.move(step[0], step[1]);
-            }
-        }, writeThreads, executionTimeInSeconds, warmupTimeInSeconds);
-
-
-        return writeRunner.run();
+    private long executeTest(long executionTimeInSeconds, long warmupTimeInSeconds, Vehicle implementation, int readThreads, int writeThreads) {
+        return 0;  //To change body of created methods use File | Settings | File Templates.
     }
 
-    private double executeReadersTest(long executionTimeInSeconds, long warmupTimeInSeconds, final Vehicle implementation, int readThreads) throws InterruptedException {
-        ThreadsRunner readRunner = new ThreadsRunner(new Runnable() {
+    private Runnable getWriterRunnable(final Vehicle implementation) throws InterruptedException {
+        final Random r = new Random();
+        return new Runnable() {
             @Override
             public void run() {
-                implementation.getPosition();
+                implementation.move(r.nextInt(10), r.nextInt(10));
             }
-        }, readThreads, executionTimeInSeconds, warmupTimeInSeconds);
-        return readRunner.run();
+        };
+    }
+
+    private Runnable getReaderRunnable(final Vehicle implementation) throws InterruptedException {
+        final int[] in = new int[2];
+        return new Runnable() {
+            @Override
+            public void run() {
+                implementation.getPosition(in);
+            }
+        };
     }
 }

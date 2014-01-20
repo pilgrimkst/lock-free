@@ -1,7 +1,6 @@
 package lockfree.vehicle;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
@@ -10,28 +9,47 @@ public class ThreadsRunner {
     private Logger logger = Logger.getLogger(getClass().getName());
     private final long warmupTimeInMillis;
     private final long executionTimeInMillis;
-    private final int numOfThreads;
+    private final int numOfWriters;
+    private final int numOfReaders;
     private final List<Thread> runningThreads;
-    private final Runnable task;
+    private final Runnable writeTask;
+    private final Runnable readTask;
 
-    public ThreadsRunner(Runnable task, int numOfThreads, long executionTimeInSeconds, long warmupTimeInMillis) {
+    public ThreadsRunner(Runnable writeTask, Runnable readTask, int numOfWriters, int numOfReaders, long executionTimeInSeconds, long warmupTimeInSeconds) {
+        this.writeTask = writeTask;
+        this.readTask = readTask;
+        this.numOfWriters = numOfWriters;
+        this.numOfReaders = numOfReaders;
         this.executionTimeInMillis = executionTimeInSeconds * 1000;
-        this.numOfThreads = numOfThreads;
-        this.warmupTimeInMillis = warmupTimeInMillis;
-        runningThreads = new ArrayList<Thread>(numOfThreads);
-        this.task = task;
+        this.warmupTimeInMillis = warmupTimeInSeconds * 1000;
+        runningThreads = new ArrayList<Thread>(numOfReaders + numOfWriters);
+
     }
 
-    public double run() throws InterruptedException {
-        final long startTimeInMillis = System.nanoTime() / 1000000;
-        final AtomicLong requests = new AtomicLong(0l);
+    public long[] run() throws InterruptedException {
+        final AtomicLong writeRequests = new AtomicLong(0l);
+        final AtomicLong readRequests = new AtomicLong(0l);
+        submit(readTask, numOfReaders, readRequests);
+        submit(writeTask, 1, writeRequests);
+
+        for (Thread t : runningThreads) {
+            t.join();
+        }
+        long testTime = (executionTimeInMillis - warmupTimeInMillis) * 1000;
+        return new long[]{writeRequests.get() / testTime, readRequests.get() / testTime};
+    }
+
+    private void submit(final Runnable task, int numOfThreads, final AtomicLong requests) {
+        final long startTimeInMillis = getCurrentTime();
+        final long warmupEnd = startTimeInMillis + warmupTimeInMillis;
+        final long testEnd = startTimeInMillis + executionTimeInMillis;
         for (int i = 0; i < numOfThreads; i++) {
             final Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    while (!timeExpired(startTimeInMillis, executionTimeInMillis)) {
+                    while (getCurrentTime() < testEnd) {
                         task.run();
-                        if (timeExpired(startTimeInMillis, warmupTimeInMillis)) {
+                        if (getCurrentTime() > warmupEnd) {
                             requests.incrementAndGet();
                         }
                     }
@@ -40,20 +58,9 @@ public class ThreadsRunner {
             runningThreads.add(t);
             t.start();
         }
-
-        for (Thread t : runningThreads) {
-            t.join();
-        }
-        long testTime = (executionTimeInMillis - warmupTimeInMillis) * 1000;
-        return requests.get() / testTime;
     }
 
-    private long timePassedInMillis(long startTimeInMillis) {
-        return (System.nanoTime() / 1000000) - startTimeInMillis;
+    private long getCurrentTime() {
+        return System.nanoTime() / 1000000;
     }
-
-    private boolean timeExpired(long startTimeInMillis, long durationInMillis) {
-        return timePassedInMillis(startTimeInMillis) - durationInMillis > 0;
-    }
-
 }

@@ -23,10 +23,10 @@ public class ReadWriteLockVehicle implements Vehicle {
     }
 
     @Override
-    public int[] getPosition() {
+    public void getPosition(int[] coords) {
         try {
             rwl.readLock().lock();
-            return vehicle.getPosition();
+            vehicle.getPosition(coords);
         } finally {
             rwl.readLock().unlock();
         }

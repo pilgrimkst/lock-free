@@ -15,9 +15,9 @@ public class SyncronizedVehicle implements Vehicle {
     }
 
     @Override
-    public int[] getPosition() {
+    public void getPosition(int[] coords) {
         synchronized (vehicle) {
-            return vehicle.getPosition();
+            vehicle.getPosition(coords);
         }
     }
 }
