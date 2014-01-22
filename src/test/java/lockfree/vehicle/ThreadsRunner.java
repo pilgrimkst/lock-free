@@ -30,7 +30,7 @@ public class ThreadsRunner {
         final AtomicLong writeRequests = new AtomicLong(0l);
         final AtomicLong readRequests = new AtomicLong(0l);
         submit(readTask, numOfReaders, readRequests);
-        submit(writeTask, 1, writeRequests);
+        submit(writeTask, numOfWriters, writeRequests);
 
         for (Thread t : runningThreads) {
             t.join();

@@ -32,8 +32,7 @@ public class PerformanceTests {
         for (final Vehicle implementation : implementations) {
             sb.append(implementation.getClass().getCanonicalName()).append(";");
             for (int readThreads = 1; readThreads < numberOfThreads; readThreads++) {
-//            int readThreads = 2;
-            int writeThreads = numberOfThreads - readThreads;
+            int writeThreads = 1;
             ThreadsRunner tr = new ThreadsRunner(getWriterRunnable(implementation), getReaderRunnable(implementation), writeThreads, readThreads, executionTimeInSeconds, warmupTimeInSeconds);
             long[] results = tr.run();
 
