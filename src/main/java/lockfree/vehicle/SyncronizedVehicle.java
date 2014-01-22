@@ -3,8 +3,8 @@ package lockfree.vehicle;
 public class SyncronizedVehicle implements Vehicle {
     private final Vehicle vehicle;
 
-    public SyncronizedVehicle(Vehicle vehicle) {
-        this.vehicle = vehicle;
+    public SyncronizedVehicle() {
+        this.vehicle = new NonSyncronizedVehicle();
     }
 
     @Override

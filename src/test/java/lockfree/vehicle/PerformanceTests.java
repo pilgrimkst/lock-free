@@ -19,7 +19,7 @@ public class PerformanceTests {
 
     private List<Vehicle> getVehicles() {
         Vehicle nonSync = new NonSyncronizedVehicle();
-        return Arrays.asList(nonSync, new ReadWriteLockVehicle(nonSync),new LockFreeVehicle(nonSync), new SyncronizedVehicle(nonSync));
+        return Arrays.asList(nonSync, new ReadWriteLockVehicle(),new SpinLockVehicle(), new SyncronizedVehicle());
     }
 
     @Test
@@ -42,10 +42,6 @@ public class PerformanceTests {
             sb.append("\n");
         }
         logger.info(sb.toString());
-    }
-
-    private long executeTest(long executionTimeInSeconds, long warmupTimeInSeconds, Vehicle implementation, int readThreads, int writeThreads) {
-        return 0;  //To change body of created methods use File | Settings | File Templates.
     }
 
     private Runnable getWriterRunnable(final Vehicle implementation) throws InterruptedException {

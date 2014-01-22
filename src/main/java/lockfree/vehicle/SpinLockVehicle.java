@@ -1,34 +1,32 @@
 package lockfree.vehicle;
 
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import lockfree.SpinLock;
 
-public class ReadWriteLockVehicle implements Vehicle {
+public class SpinLockVehicle implements Vehicle {
     private final Vehicle vehicle;
-    private final ReadWriteLock rwl;
 
-    public ReadWriteLockVehicle() {
+    public SpinLockVehicle() {
         this.vehicle = new NonSyncronizedVehicle();
-        rwl = new ReentrantReadWriteLock();
     }
 
     @Override
     public void move(int xDelta, int yDelta) {
         try {
-            rwl.writeLock().lock();
+            SpinLock.acquire();
             vehicle.move(xDelta, yDelta);
         } finally {
-            rwl.writeLock().unlock();
+            SpinLock.release();
         }
     }
 
     @Override
     public void getPosition(int[] coords) {
         try {
-            rwl.readLock().lock();
+            SpinLock.acquire();
             vehicle.getPosition(coords);
         } finally {
-            rwl.readLock().unlock();
+            SpinLock.release();
         }
     }
+
 }

@@ -1,32 +1,29 @@
 package lockfree.vehicle;
 
-import lockfree.SpinLock;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class LockFreeVehicle implements Vehicle {
-    private final Vehicle vehicle;
-
-    public LockFreeVehicle(Vehicle vehicle) {
-        this.vehicle = vehicle;
-    }
+    private final AtomicReference<int[]> coordinates = new AtomicReference<int[]>(new int[]{0, 0});
 
     @Override
     public void move(int xDelta, int yDelta) {
-        try {
-            SpinLock.acquire();
-            vehicle.move(xDelta, yDelta);
-        } finally {
-            SpinLock.release();
-        }
+        int[] oldCoords;
+        int[] newCoords;
+        do {
+            oldCoords = coordinates.get();
+            newCoords = new int[]{oldCoords[0] + xDelta, oldCoords[1] + yDelta};
+        } while (!coordinates.compareAndSet(oldCoords, newCoords));
+
     }
 
     @Override
     public void getPosition(int[] coords) {
-        try {
-            SpinLock.acquire();
-            vehicle.getPosition(coords);
-        } finally {
-            SpinLock.release();
-        }
+        int[] newCoords;
+        do {
+            newCoords = coordinates.get();
+            coords[0] = newCoords[0];
+            coords[1] = newCoords[1];
+        } while (newCoords != coordinates.get());
     }
 
 }
