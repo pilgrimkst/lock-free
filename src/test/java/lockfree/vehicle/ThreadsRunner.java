@@ -1,5 +1,8 @@
 package lockfree.vehicle;
 
+import vanilla.java.affinity.AffinityLock;
+import vanilla.java.affinity.AffinityStrategies;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -29,7 +32,10 @@ public class ThreadsRunner {
     public long[] run() throws InterruptedException {
         final AtomicLong writeRequests = new AtomicLong(0l);
         final AtomicLong readRequests = new AtomicLong(0l);
+        AffinityLock al = AffinityLock.acquireLock();
+        AffinityLock readerLock = al.acquireLock(AffinityStrategies.DIFFERENT_SOCKET, AffinityStrategies.DIFFERENT_CORE);
         submit(readTask, numOfReaders, readRequests);
+        AffinityLock writerLock = readerLock.acquireLock(AffinityStrategies.SAME_CORE, AffinityStrategies.SAME_SOCKET, AffinityStrategies.ANY);
         submit(writeTask, numOfWriters, writeRequests);
 
         for (Thread t : runningThreads) {
@@ -44,6 +50,7 @@ public class ThreadsRunner {
         final long warmupEnd = startTimeInMillis + warmupTimeInMillis;
         final long testEnd = startTimeInMillis + executionTimeInMillis;
         for (int i = 0; i < numOfThreads; i++) {
+
             final Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
